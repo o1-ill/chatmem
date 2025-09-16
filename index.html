@@ -69,19 +69,7 @@
             </div>
             
             <div class="space-y-6">
-                <button id="googleSignIn" class="w-full bg-white text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-3">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    تسجيل الدخول بجوجل
-                </button>
-                
-                <div class="text-center">
-                    <p class="text-sm opacity-75">أو</p>
-                </div>
+
                 
                 <div class="space-y-4">
                     <input type="email" id="emailInput" placeholder="البريد الإلكتروني" class="w-full p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50">
@@ -177,23 +165,158 @@
     </div>
 
     <script>
-        // إعداد Firebase
-      
-const firebaseConfig = {
-  apiKey: "AIzaSyD8mtzxr5AvdEOnCTXfC5zWImRu9gZWdUI",
-  authDomain: "chatmem-94851.firebaseapp.com",
-  databaseURL: "https://chatmem-94851-default-rtdb.firebaseio.com",
-  projectId: "chatmem-94851",
-  storageBucket: "chatmem-94851.firebasestorage.app",
-  messagingSenderId: "463208675712",
-  appId: "1:463208675712:web:8eea3d585a3ebe3763a965",
-  measurementId: "G-JCEHTRMYZ8"
-};
-    
+        // إعداد Firebase التجريبي
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemo-Key-For-ChatMem-Testing",
+            authDomain: "chatmem-demo.firebaseapp.com",
+            projectId: "chatmem-demo",
+            storageBucket: "chatmem-demo.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456"
+        };
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        // محاكاة Firebase للعرض التوضيحي
+        const mockAuth = {
+            currentUser: null,
+            users: JSON.parse(localStorage.getItem('chatmem_users') || '{}'),
+            
+            signInWithEmailAndPassword: function(email, password) {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        const users = JSON.parse(localStorage.getItem('chatmem_users') || '{}');
+                        if (users[email] && users[email].password === password) {
+                            this.currentUser = { uid: users[email].uid, email: email };
+                            localStorage.setItem('chatmem_current_user', JSON.stringify(this.currentUser));
+                            if (this.onAuthStateChanged) {
+                                this.onAuthStateChanged(this.currentUser);
+                            }
+                            resolve({ user: this.currentUser });
+                        } else {
+                            reject(new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة'));
+                        }
+                    }, 500);
+                });
+            },
+            
+            createUserWithEmailAndPassword: function(email, password) {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        const users = JSON.parse(localStorage.getItem('chatmem_users') || '{}');
+                        if (users[email]) {
+                            reject(new Error('هذا البريد الإلكتروني مستخدم بالفعل'));
+                            return;
+                        }
+                        
+                        const uid = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        users[email] = { uid: uid, password: password, createdAt: new Date().toISOString() };
+                        localStorage.setItem('chatmem_users', JSON.stringify(users));
+                        
+                        this.currentUser = { uid: uid, email: email };
+                        localStorage.setItem('chatmem_current_user', JSON.stringify(this.currentUser));
+                        
+                        if (this.onAuthStateChanged) {
+                            this.onAuthStateChanged(this.currentUser);
+                        }
+                        resolve({ user: this.currentUser });
+                    }, 500);
+                });
+            },
+            
+            signOut: function() {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        this.currentUser = null;
+                        localStorage.removeItem('chatmem_current_user');
+                        if (this.onAuthStateChanged) {
+                            this.onAuthStateChanged(null);
+                        }
+                        resolve();
+                    }, 300);
+                });
+            },
+            
+            onAuthStateChanged: null
+        };
+
+        const mockFirestore = {
+            collection: function(name) {
+                return {
+                    add: function(data) {
+                        return new Promise((resolve) => {
+                            setTimeout(() => {
+                                const messages = JSON.parse(localStorage.getItem('chatmem_messages') || '[]');
+                                const newMessage = {
+                                    id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                                    ...data,
+                                    timestamp: new Date().toISOString()
+                                };
+                                messages.push(newMessage);
+                                localStorage.setItem('chatmem_messages', JSON.stringify(messages));
+                                resolve({ id: newMessage.id });
+                            }, 200);
+                        });
+                    },
+                    
+                    where: function(field, operator, value) {
+                        return {
+                            orderBy: function(orderField, direction) {
+                                return {
+                                    limit: function(limitNum) {
+                                        return {
+                                            get: function() {
+                                                return new Promise((resolve) => {
+                                                    setTimeout(() => {
+                                                        const messages = JSON.parse(localStorage.getItem('chatmem_messages') || '[]');
+                                                        const filteredMessages = messages.filter(msg => msg[field] === value);
+                                                        const sortedMessages = filteredMessages.sort((a, b) => {
+                                                            if (direction === 'desc') {
+                                                                return new Date(b[orderField]) - new Date(a[orderField]);
+                                                            }
+                                                            return new Date(a[orderField]) - new Date(b[orderField]);
+                                                        });
+                                                        const limitedMessages = sortedMessages.slice(0, limitNum);
+                                                        
+                                                        resolve({
+                                                            forEach: function(callback) {
+                                                                limitedMessages.forEach(msg => {
+                                                                    callback({ data: () => msg });
+                                                                });
+                                                            }
+                                                        });
+                                                    }, 300);
+                                                });
+                                            }
+                                        };
+                                    }
+                                };
+                            }
+                        };
+                    }
+                };
+            }
+        };
+
+        const auth = mockAuth;
+        const db = mockFirestore;
+
+        // التحقق من المستخدم المحفوظ عند تحميل الصفحة
+        window.addEventListener('load', () => {
+            const savedUser = localStorage.getItem('chatmem_current_user');
+            if (savedUser) {
+                try {
+                    auth.currentUser = JSON.parse(savedUser);
+                    if (auth.onAuthStateChanged) {
+                        setTimeout(() => auth.onAuthStateChanged(auth.currentUser), 100);
+                    }
+                } catch (e) {
+                    localStorage.removeItem('chatmem_current_user');
+                }
+            } else {
+                if (auth.onAuthStateChanged) {
+                    setTimeout(() => auth.onAuthStateChanged(null), 100);
+                }
+            }
+        });
 
         // متغيرات عامة
         let currentUser = null;
@@ -202,7 +325,7 @@ const firebaseConfig = {
         // عناصر DOM
         const loginPage = document.getElementById('loginPage');
         const chatPage = document.getElementById('chatPage');
-        const googleSignInBtn = document.getElementById('googleSignIn');
+
         const emailSignInBtn = document.getElementById('emailSignIn');
         const emailSignUpBtn = document.getElementById('emailSignUp');
         const signOutBtn = document.getElementById('signOutBtn');
@@ -229,15 +352,7 @@ const firebaseConfig = {
             }
         });
 
-        // تسجيل الدخول بجوجل
-        googleSignInBtn.addEventListener('click', async () => {
-            try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
-            } catch (error) {
-                alert('خطأ في تسجيل الدخول: ' + error.message);
-            }
-        });
+
 
         // تسجيل الدخول بالبريد الإلكتروني
         emailSignInBtn.addEventListener('click', async () => {
@@ -512,6 +627,5 @@ const firebaseConfig = {
             this.style.height = Math.min(this.scrollHeight, 128) + 'px';
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98043d11e382d0da',t:'MTc1ODA2NjMzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'980444903196d0da',t:'MTc1ODA2NjY0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
-
