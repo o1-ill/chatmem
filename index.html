@@ -1,720 +1,316 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<!doctype html>
+<html lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatMem - الذكاء الاصطناعي</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
-        
-        * {
-            font-family: 'Cairo', sans-serif;
-        }
-        
-        .chat-message {
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .typing-indicator {
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .message-user {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        }
-        
-        .message-ai {
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            color: #374151;
-        }
-        
-        .success-animation {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            animation: successPop 0.6s ease-out;
-        }
-        
-        @keyframes successPop {
-            0% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.8);
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.05);
-            }
-            100% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-        
-        .checkmark {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #10b981;
-            position: relative;
-            margin: 0 auto 1rem;
-        }
-        
-        .checkmark::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 12px;
-            height: 20px;
-            border: solid white;
-            border-width: 0 3px 3px 0;
-            transform: translate(-50%, -60%) rotate(45deg);
-            animation: checkmarkDraw 0.3s ease-out 0.2s both;
-        }
-        
-        @keyframes checkmarkDraw {
-            0% {
-                opacity: 0;
-                transform: translate(-50%, -60%) rotate(45deg) scale(0);
-            }
-            100% {
-                opacity: 1;
-                transform: translate(-50%, -60%) rotate(45deg) scale(1);
-            }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>chatmem — دردش مع الذكاء الاصطناعي</title>
+
+  <!-- Tailwind CDN (تصميم عصري سريع) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDKs (compat للمزيد من البساطة) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    body { direction: rtl; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- صفحة تسجيل الدخول -->
-    <div id="loginPage" class="min-h-screen gradient-bg flex items-center justify-center p-4">
-        <div class="glass-effect rounded-2xl p-8 w-full max-w-md text-white">
-            <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold mb-2">ChatMem</h1>
-                <p class="text-lg opacity-90">الذكاء الاصطناعي المتقدم</p>
-            </div>
-            
-            <div class="space-y-6">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-                
-                <div class="space-y-4">
-                    <input type="email" id="emailInput" placeholder="البريد الإلكتروني" class="w-full p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50">
-                    <input type="password" id="passwordInput" placeholder="كلمة المرور" class="w-full p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50">
-                    <button id="emailSignIn" class="w-full bg-purple-600 hover:bg-purple-700 py-3 px-6 rounded-lg font-semibold transition-colors">
-                        تسجيل الدخول
-                    </button>
-                    <button id="emailSignUp" class="w-full bg-transparent border-2 border-white/30 hover:bg-white/10 py-3 px-6 rounded-lg font-semibold transition-colors">
-                        إنشاء حساب جديد
-                    </button>
-                </div>
-            </div>
+  <div class="w-full max-w-5xl bg-white rounded-2xl shadow-lg overflow-hidden grid grid-cols-1 lg:grid-cols-3">
+    <!-- Sidebar -->
+    <aside class="p-6 border-b lg:border-b-0 lg:border-r">
+      <div class="flex items-center gap-3">
+        <img src="https://static.thenounproject.com/png/3407196-200.png" class="w-12 h-12" alt="logo">
+        <div>
+          <h1 class="text-xl font-semibold">chatmem</h1>
+          <p class="text-xs text-gray-500">دردشة ذكية خاصة بحسابك</p>
         </div>
-    </div>
+      </div>
 
-    <!-- الصفحة الرئيسية للدردشة -->
-    <div id="chatPage" class="hidden min-h-screen bg-gray-50">
-        <!-- شريط علوي -->
-        <header class="bg-white shadow-sm border-b border-gray-200 p-4">
-            <div class="max-w-6xl mx-auto flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                        <span class="text-white font-bold text-lg">C</span>
-                    </div>
-                    <h1 class="text-2xl font-bold text-gray-800">ChatMem</h1>
-                </div>
-                
-                <div class="flex items-center gap-4">
-                    <span id="userEmail" class="text-sm text-gray-600"></span>
-                    <button id="signOutBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        تسجيل الخروج
-                    </button>
-                </div>
-            </div>
-        </header>
+      <div id="authSection" class="mt-6">
+        <button id="googleSignBtn" class="w-full bg-red-500 text-white py-2 rounded-lg hover:opacity-95">
+          تسجيل الدخول بجيميل
+        </button>
+        <button id="signOutBtn" class="w-full mt-2 bg-gray-200 text-gray-700 py-2 rounded-lg hidden">
+          تسجيل الخروج
+        </button>
+        <p id="userEmail" class="text-sm text-gray-600 mt-3"></p>
+      </div>
 
-        <!-- منطقة الدردشة -->
-        <div class="max-w-4xl mx-auto p-4 pb-32">
-            <div id="chatContainer" class="space-y-4">
-                <!-- رسالة ترحيب -->
-                <div class="chat-message flex justify-start">
-                    <div class="message-ai max-w-xs lg:max-w-md px-4 py-3 rounded-2xl rounded-tr-md">
-                        <p class="text-sm">مرحباً! أنا ChatMem، مساعدك الذكي. يمكنني الإجابة على أسئلتك وتحليل الصور. كيف يمكنني مساعدتك اليوم؟</p>
-                    </div>
-                </div>
-            </div>
+      <hr class="my-4">
+
+      <div>
+        <h3 class="text-sm text-gray-600">المحادثات</h3>
+        <ul id="conversationsList" class="mt-3 space-y-2 max-h-48 overflow-auto"></ul>
+      </div>
+
+      <div class="mt-4 text-xs text-gray-500">
+        <p>ملاحظة: كل حساب له قاعدة بيانات منفصلة محفوظة في Firebase Firestore.</p>
+      </div>
+    </aside>
+
+    <!-- Main Chat -->
+    <main class="col-span-2 p-6 flex flex-col">
+      <div class="flex-1 flex flex-col gap-4 overflow-hidden">
+        <!-- عنوان المحادثة -->
+        <div class="flex items-center justify-between">
+          <h2 id="chatTitle" class="text-lg font-medium">مرحباً — ابدأ بالسؤال</h2>
+          <div class="text-sm text-gray-500">واجهة تشبه ChatGPT — مع بحث ويب ورفع صور</div>
         </div>
 
-        <!-- منطقة الكتابة -->
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-            <div class="max-w-4xl mx-auto">
-                <div class="flex items-end gap-3">
-                    <div class="flex-1 relative">
-                        <textarea 
-                            id="messageInput" 
-                            placeholder="اكتب رسالتك هنا..." 
-                            class="w-full p-4 pr-12 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32"
-                            rows="1"
-                        ></textarea>
-                        
-                        <div class="absolute left-3 bottom-3 flex gap-2">
-                            <input type="file" id="imageInput" accept="image/*" class="hidden">
-                            <button id="imageBtn" class="p-2 text-gray-500 hover:text-purple-500 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button id="sendBtn" class="bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                    </button>
-                </div>
-                
-                <div id="imagePreview" class="hidden mt-3 p-3 bg-gray-100 rounded-lg">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <img id="previewImg" class="w-16 h-16 object-cover rounded-lg">
-                            <span class="text-sm text-gray-600">صورة مرفقة</span>
-                        </div>
-                        <button id="removeImage" class="text-red-500 hover:text-red-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <!-- الرسائل -->
+        <div id="messages" class="flex-1 overflow-auto p-4 bg-gray-50 rounded-lg space-y-3">
+          <!-- رسائل ستُدرج هنا -->
         </div>
-    </div>
+      </div>
 
-    <script>
-        // إعداد Firebase التجريبي
-const firebaseConfig = {
-  apiKey: "AIzaSyD8mtzxr5AvdEOnCTXfC5zWImRu9gZWdUI",
-  authDomain: "chatmem-94851.firebaseapp.com",
-  databaseURL: "https://chatmem-94851-default-rtdb.firebaseio.com",
-  projectId: "chatmem-94851",
-  storageBucket: "chatmem-94851.firebasestorage.app",
-  messagingSenderId: "463208675712",
-  appId: "1:463208675712:web:8eea3d585a3ebe3763a965",
-  measurementId: "G-JCEHTRMYZ8"
+      <!-- لوحة الإدخال -->
+      <div class="mt-4 border-t pt-4">
+        <form id="chatForm" class="flex gap-3">
+          <input id="messageInput" type="text" placeholder="اسألني أي شيء..." class="flex-1 p-3 rounded-lg border" autocomplete="off" />
+          <label class="flex items-center gap-2">
+            <input id="imageInput" type="file" accept="image/*" class="hidden" />
+            <button type="button" id="attachBtn" class="px-3 py-2 bg-blue-50 rounded-lg border">📷</button>
+          </label>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">إرسال</button>
+        </form>
+
+        <div id="status" class="text-xs text-gray-500 mt-2"></div>
+      </div>
+    </main>
+  </div>
+
+<script>
+/* ======================================
+   إعدادات يجب تعديلها قبل النشر
+   ======================================
+   1) ضع هنا Firebase config الخاص بمشروعك.
+   2) ضع رابط نقطة النهاية الخلفية (backend) في BACKEND_ENDPOINT.
+      إذا لم تكن تملك backend بعد، سيتم تشغيل "وضع الاختبار المحلي" mock mode.
+*/
+
+const FIREBASE_CONFIG = {
+  apiKey: "REPLACE_WITH_FIREBASE_APIKEY",
+  authDomain: "REPLACE_WITH_PROJECT.firebaseapp.com",
+  projectId: "REPLACE_WITH_PROJECT_ID",
+  storageBucket: "REPLACE_WITH_PROJECT.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID",
 };
 
-        // محاكاة Firebase للعرض التوضيحي
-        const mockAuth = {
-            currentUser: null,
-            users: JSON.parse(localStorage.getItem('chatmem_users') || '{}'),
-            
-            signInWithEmailAndPassword: function(email, password) {
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        const users = JSON.parse(localStorage.getItem('chatmem_users') || '{}');
-                        if (users[email] && users[email].password === password) {
-                            this.currentUser = { uid: users[email].uid, email: email };
-                            localStorage.setItem('chatmem_current_user', JSON.stringify(this.currentUser));
-                            triggerAuthStateChange(this.currentUser);
-                            resolve({ user: this.currentUser });
-                        } else {
-                            reject(new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة'));
-                        }
-                    }, 500);
-                });
-            },
-            
-            createUserWithEmailAndPassword: function(email, password) {
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        const users = JSON.parse(localStorage.getItem('chatmem_users') || '{}');
-                        if (users[email]) {
-                            reject(new Error('هذا البريد الإلكتروني مستخدم بالفعل'));
-                            return;
-                        }
-                        
-                        const uid = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        users[email] = { uid: uid, password: password, createdAt: new Date().toISOString() };
-                        localStorage.setItem('chatmem_users', JSON.stringify(users));
-                        
-                        this.currentUser = { uid: uid, email: email };
-                        localStorage.setItem('chatmem_current_user', JSON.stringify(this.currentUser));
-                        
-                        triggerAuthStateChange(this.currentUser);
-                        resolve({ user: this.currentUser });
-                    }, 500);
-                });
-            },
-            
-            signOut: function() {
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        this.currentUser = null;
-                        localStorage.removeItem('chatmem_current_user');
-                        triggerAuthStateChange(null);
-                        resolve();
-                    }, 300);
-                });
-            },
-            
-            onAuthStateChanged: null
-        };
+// نقطة النهاية الخلفية: استبدلها بعنوان سيرفرك/Cloud Function
+const BACKEND_ENDPOINT = "REPLACE_WITH_YOUR_BACKEND_ENDPOINT"; // e.g. https://us-central1-.../api/search_and_answer
 
-        const mockFirestore = {
-            collection: function(name) {
-                return {
-                    add: function(data) {
-                        return new Promise((resolve) => {
-                            setTimeout(() => {
-                                const messages = JSON.parse(localStorage.getItem('chatmem_messages') || '[]');
-                                const newMessage = {
-                                    id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                                    ...data,
-                                    timestamp: new Date().toISOString()
-                                };
-                                messages.push(newMessage);
-                                localStorage.setItem('chatmem_messages', JSON.stringify(messages));
-                                resolve({ id: newMessage.id });
-                            }, 200);
-                        });
-                    },
-                    
-                    where: function(field, operator, value) {
-                        return {
-                            orderBy: function(orderField, direction) {
-                                return {
-                                    limit: function(limitNum) {
-                                        return {
-                                            get: function() {
-                                                return new Promise((resolve) => {
-                                                    setTimeout(() => {
-                                                        const messages = JSON.parse(localStorage.getItem('chatmem_messages') || '[]');
-                                                        const filteredMessages = messages.filter(msg => msg[field] === value);
-                                                        const sortedMessages = filteredMessages.sort((a, b) => {
-                                                            if (direction === 'desc') {
-                                                                return new Date(b[orderField]) - new Date(a[orderField]);
-                                                            }
-                                                            return new Date(a[orderField]) - new Date(b[orderField]);
-                                                        });
-                                                        const limitedMessages = sortedMessages.slice(0, limitNum);
-                                                        
-                                                        resolve({
-                                                            forEach: function(callback) {
-                                                                limitedMessages.forEach(msg => {
-                                                                    callback({ data: () => msg });
-                                                                });
-                                                            }
-                                                        });
-                                                    }, 300);
-                                                });
-                                            }
-                                        };
-                                    }
-                                };
-                            }
-                        };
-                    }
-                };
-            }
-        };
+/* ======================================
+   تهيئة Firebase
+   ====================================== */
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-        const auth = mockAuth;
-        const db = mockFirestore;
+/* عناصر DOM */
+const googleSignBtn = document.getElementById('googleSignBtn');
+const signOutBtn = document.getElementById('signOutBtn');
+const userEmail = document.getElementById('userEmail');
+const messagesDiv = document.getElementById('messages');
+const chatForm = document.getElementById('chatForm');
+const messageInput = document.getElementById('messageInput');
+const statusDiv = document.getElementById('status');
+const conversationsList = document.getElementById('conversationsList');
+const attachBtn = document.getElementById('attachBtn');
+const imageInput = document.getElementById('imageInput');
+const chatTitle = document.getElementById('chatTitle');
 
-        // التحقق من المستخدم المحفوظ عند تحميل الصفحة
-        window.addEventListener('load', () => {
-            const savedUser = localStorage.getItem('chatmem_current_user');
-            if (savedUser) {
-                try {
-                    auth.currentUser = JSON.parse(savedUser);
-                    setTimeout(() => triggerAuthStateChange(auth.currentUser), 100);
-                } catch (e) {
-                    localStorage.removeItem('chatmem_current_user');
-                    setTimeout(() => triggerAuthStateChange(null), 100);
-                }
-            } else {
-                setTimeout(() => triggerAuthStateChange(null), 100);
-            }
-        });
+let currentUser = null;
+let currentConversationId = null;
 
-        // متغيرات عامة
-        let currentUser = null;
-        let selectedImage = null;
+/* تسجيل الدخول بجوجل */
+googleSignBtn.addEventListener('click', async () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(provider);
+  } catch (err) {
+    alert('خطأ في تسجيل الدخول: ' + err.message);
+  }
+});
 
-        // عناصر DOM
-        const loginPage = document.getElementById('loginPage');
-        const chatPage = document.getElementById('chatPage');
+signOutBtn.addEventListener('click', () => auth.signOut());
 
-        const emailSignInBtn = document.getElementById('emailSignIn');
-        const emailSignUpBtn = document.getElementById('emailSignUp');
-        const signOutBtn = document.getElementById('signOutBtn');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const chatContainer = document.getElementById('chatContainer');
-        const imageBtn = document.getElementById('imageBtn');
-        const imageInput = document.getElementById('imageInput');
-        const imagePreview = document.getElementById('imagePreview');
-        const previewImg = document.getElementById('previewImg');
-        const removeImageBtn = document.getElementById('removeImage');
-        const userEmailSpan = document.getElementById('userEmail');
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    currentUser = user;
+    userEmail.textContent = user.email;
+    googleSignBtn.classList.add('hidden');
+    signOutBtn.classList.remove('hidden');
 
-        // مراقبة حالة المصادقة
-        auth.onAuthStateChanged = (callback) => {
-            auth._onAuthStateChangedCallback = callback;
-        };
+    await loadConversations();
+    await openOrCreateConversation();
+  } else {
+    currentUser = null;
+    userEmail.textContent = '';
+    googleSignBtn.classList.remove('hidden');
+    signOutBtn.classList.add('hidden');
+    messagesDiv.innerHTML = '';
+    conversationsList.innerHTML = '';
+  }
+});
 
-        // تشغيل callback عند تغيير حالة المصادقة
-        function triggerAuthStateChange(user) {
-            if (auth._onAuthStateChangedCallback) {
-                auth._onAuthStateChangedCallback(user);
-            }
-        }
+/* تحميل قائمة المحادثات */
+async function loadConversations() {
+  if (!currentUser) return;
+  const q = await db.collection('users').doc(currentUser.uid).collection('conversations')
+    .orderBy('updatedAt', 'desc').limit(20).get();
 
-        // إعداد مراقب حالة المصادقة
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                userEmailSpan.textContent = user.email;
-                showSuccessAnimation(() => {
-                    showChatPage();
-                    loadChatHistory();
-                });
-            } else {
-                currentUser = null;
-                showLoginPage();
-            }
-        });
+  conversationsList.innerHTML = '';
+  q.forEach(doc => {
+    const data = doc.data();
+    const li = document.createElement('li');
+    li.className = 'p-2 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-blue-50';
+    li.textContent = data.title || 'محادثة جديدة';
+    li.addEventListener('click', () => loadConversationMessages(doc.id));
+    conversationsList.appendChild(li);
+  });
+}
 
+/* فتح أو إنشاء محادثة */
+async function openOrCreateConversation() {
+  if (!currentUser) return;
+  const convRef = await db.collection('users').doc(currentUser.uid).collection('conversations').add({
+    title: 'محادثة جديدة',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  currentConversationId = convRef.id;
+  chatTitle.textContent = 'محادثة جديدة';
+  messagesDiv.innerHTML = '';
+}
 
+/* تحميل رسائل */
+async function loadConversationMessages(convId) {
+  if (!currentUser) return;
+  currentConversationId = convId;
+  chatTitle.textContent = 'تحميل الرسائل...';
+  messagesDiv.innerHTML = '';
 
-        // تسجيل الدخول بالبريد الإلكتروني
-        emailSignInBtn.addEventListener('click', async () => {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            
-            if (!email || !password) {
-                alert('يرجى إدخال البريد الإلكتروني وكلمة المرور');
-                return;
-            }
+  const msgsSnapshot = await db.collection('users').doc(currentUser.uid)
+    .collection('conversations').doc(convId).collection('messages')
+    .orderBy('createdAt','asc').get();
 
-            try {
-                await auth.signInWithEmailAndPassword(email, password);
-            } catch (error) {
-                alert('خطأ في تسجيل الدخول: ' + error.message);
-            }
-        });
+  msgsSnapshot.forEach(doc => appendMessageToUI(doc.data()));
+  chatTitle.textContent = 'محادثة';
+}
 
-        // إنشاء حساب جديد
-        emailSignUpBtn.addEventListener('click', async () => {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            
-            if (!email || !password) {
-                alert('يرجى إدخال البريد الإلكتروني وكلمة المرور');
-                return;
-            }
+/* إضافة رسالة إلى الواجهة */
+function appendMessageToUI(msg) {
+  const wrapper = document.createElement('div');
+  wrapper.className = msg.role === 'user' ? 'text-right' : 'text-left';
 
-            if (password.length < 6) {
-                alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-                return;
-            }
+  const bubble = document.createElement('div');
+  bubble.className = (msg.role === 'user' ? 'inline-block bg-blue-600 text-white' : 'inline-block bg-gray-100 text-gray-800') +
+    ' p-3 rounded-lg max-w-[80%]';
 
-            try {
-                await auth.createUserWithEmailAndPassword(email, password);
-            } catch (error) {
-                alert('خطأ في إنشاء الحساب: ' + error.message);
-            }
-        });
+  bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+  wrapper.appendChild(bubble);
 
-        // تسجيل الخروج
-        signOutBtn.addEventListener('click', () => {
-            auth.signOut();
-        });
+  if (msg.imageUrl) {
+    const img = document.createElement('img');
+    img.src = msg.imageUrl;
+    img.className = 'mt-2 rounded-md max-h-40';
+    wrapper.appendChild(img);
+  }
 
-        // إرسال الرسالة
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+  messagesDiv.appendChild(wrapper);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
-        // تحديد الصورة
-        imageBtn.addEventListener('click', () => {
-            imageInput.click();
-        });
+/* إرسال رسالة */
+chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) { alert('سجل الدخول أولاً.'); return; }
+  const text = messageInput.value.trim();
+  const file = imageInput.files[0];
+  if (!text && !file) return;
 
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                selectedImage = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImg.src = e.target.result;
-                    imagePreview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+  statusDiv.textContent = 'جاري المعالجة...';
 
-        removeImageBtn.addEventListener('click', () => {
-            selectedImage = null;
-            imagePreview.classList.add('hidden');
-            imageInput.value = '';
-        });
+  let imageUrl = null;
+  if (file) {
+    const storageRef = storage.ref().child(`${currentUser.uid}/images/${Date.now()}_${file.name}`);
+    await storageRef.put(file);
+    imageUrl = await storageRef.getDownloadURL();
+  }
 
-        // وظائف المساعدة
-        function showLoginPage() {
-            loginPage.classList.remove('hidden');
-            chatPage.classList.add('hidden');
-        }
+  const messageDoc = {
+    role: 'user',
+    text: text || '[صورة مرفقة]',
+    imageUrl: imageUrl || null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
 
-        function showChatPage() {
-            loginPage.classList.add('hidden');
-            chatPage.classList.remove('hidden');
-        }
+  const messagesCol = db.collection('users').doc(currentUser.uid)
+    .collection('conversations').doc(currentConversationId).collection('messages');
 
-        function showSuccessAnimation(callback) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success-animation';
-            successDiv.innerHTML = `
-                <div class="checkmark"></div>
-                <h3 class="text-xl font-bold text-center text-gray-800 mb-2">تم التسجيل بنجاح!</h3>
-                <p class="text-center text-gray-600">مرحباً بك في ChatMem</p>
-            `;
-            
-            document.body.appendChild(successDiv);
-            
-            setTimeout(() => {
-                successDiv.style.opacity = '0';
-                successDiv.style.transform = 'translate(-50%, -50%) scale(0.8)';
-                setTimeout(() => {
-                    document.body.removeChild(successDiv);
-                    if (callback) callback();
-                }, 300);
-            }, 2000);
-        }
+  await messagesCol.add(messageDoc);
+  appendMessageToUI({ ...messageDoc, createdAt: new Date() });
 
-        async function sendMessage() {
-            const message = messageInput.value.trim();
-            if (!message && !selectedImage) return;
+  try {
+    let reply = null;
+    // إذا لم يتم تعيين BACKEND_ENDPOINT، نشغّل mock local responder لتمكين الاختبار المحلي
+    if (!BACKEND_ENDPOINT || BACKEND_ENDPOINT.includes('REPLACE_WITH')) {
+      reply = await mockLocalResponder({ query: text, imageUrl });
+    } else {
+      const payload = { uid: currentUser.uid, conversationId: currentConversationId, query: text, imageUrl };
+      const res = await fetch(BACKEND_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error('خطأ من الخادم: ' + res.status);
+      const data = await res.json();
+      reply = { text: data.answer || 'لم أتمكن من العثور على إجابة مناسبة.', sources: data.sources || [] };
+    }
 
-            // إضافة رسالة المستخدم
-            if (message) {
-                addMessage(message, 'user');
-            }
+    const answerMsg = { role: 'assistant', text: reply.text || reply, sources: reply.sources || [], createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    await messagesCol.add(answerMsg);
+    appendMessageToUI({ ...answerMsg, createdAt: new Date() });
+    statusDiv.textContent = 'تم الرد.';
+  } catch (err) {
+    console.error(err);
+    statusDiv.textContent = 'حصل خطأ أثناء طلب الإجابة: ' + err.message;
+    appendMessageToUI({ role: 'assistant', text: 'حصل خطأ أثناء جلب الإجابة. جرب لاحقاً.' });
+  }
 
-            if (selectedImage) {
-                addImageMessage(selectedImage, 'user');
-            }
+  messageInput.value = '';
+  imageInput.value = '';
+});
 
-            // حفظ الرسالة في قاعدة البيانات
-            await saveMessage(message, selectedImage, 'user');
+attachBtn.addEventListener('click', () => imageInput.click());
 
-            // مسح الإدخال
-            messageInput.value = '';
-            selectedImage = null;
-            imagePreview.classList.add('hidden');
-            imageInput.value = '';
+/* ======================================
+   Mock local responder (يسمح بتجربة الواجهة بدون backend)
+   هذه الميزة مجرد مساعدة للاختبار — لا تعتمد عليها لإنتاج إجابات دقيقة.
+   - تحلل السؤال بشكل بسيط وتعطي رد تجريبي
+   - إذا أرسلت صورة، ستعطي إجابة مختصرة تشير إلى أنها استلمت الصورة
+   ====================================== */
+async function mockLocalResponder({ query, imageUrl }) {
+  await new Promise(r => setTimeout(r, 800)); // محاكاة زمن الشبكة
+  if (imageUrl && (!query || query.trim() === '')) {
+    return { text: 'لقد استلمت الصورة. يمكنك سؤالي عن محتوياتها (مثلاً: ما هذا المنتج؟) وسأحاول البحث عنها.' };
+  }
+  if (!query) return { text: 'مرحباً! اسألني أي شيء عن البرمجة، التاريخ، النصائح اليومية... سأرد بطريقة مرتبة.' };
 
-            // إظهار مؤشر الكتابة
-            showTypingIndicator();
+  // تحويل السؤال إلى إجابة تجريبية باستخدام قواعد بسيطة
+  const lower = query.toLowerCase();
+  if (lower.includes('كيف') || lower.includes('شنو') || lower.includes('ماهي') || lower.includes('ما هو')) {
+    return { text: 'هذه إجابة تجريبية: عادةً سأبحث في الويب عن مصادر موثوقة، أستخلص المعلومات المتكررة، ثم أعيد صياغتها لتظهر بشكل مرتب وموجز.' };
+  }
+  return { text: 'إجابة تجريبية: لم أتمكن من الوصول إلى خادم البحث. يمكنك تعيين BACKEND_ENDPOINT في ملف HTML إلى نقطة نهاية الخادم الخاص بك لتفعيل البحث في الويب وإعادة الصياغة.' };
+}
 
-            // الحصول على رد الذكاء الاصطناعي
-            const aiResponse = await getAIResponse(message, selectedImage);
-            
-            // إخفاء مؤشر الكتابة
-            hideTypingIndicator();
+</script>
 
-            // إضافة رد الذكاء الاصطناعي
-            addMessage(aiResponse, 'ai');
-            
-            // حفظ رد الذكاء الاصطناعي
-            await saveMessage(aiResponse, null, 'ai');
-        }
-
-        function addMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
-            
-            const messageContent = document.createElement('div');
-            messageContent.className = `${sender === 'user' ? 'message-user text-white' : 'message-ai'} max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${sender === 'user' ? 'rounded-tl-md' : 'rounded-tr-md'}`;
-            
-            const messageText = document.createElement('p');
-            messageText.className = 'text-sm whitespace-pre-wrap';
-            messageText.textContent = text;
-            
-            messageContent.appendChild(messageText);
-            messageDiv.appendChild(messageContent);
-            chatContainer.appendChild(messageDiv);
-            
-            // التمرير إلى الأسفل
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function addImageMessage(imageFile, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
-            
-            const messageContent = document.createElement('div');
-            messageContent.className = `${sender === 'user' ? 'message-user' : 'message-ai'} max-w-xs lg:max-w-md p-2 rounded-2xl ${sender === 'user' ? 'rounded-tl-md' : 'rounded-tr-md'}`;
-            
-            const img = document.createElement('img');
-            img.className = 'w-full h-auto rounded-lg';
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(imageFile);
-            
-            messageContent.appendChild(img);
-            messageDiv.appendChild(messageContent);
-            chatContainer.appendChild(messageDiv);
-            
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function showTypingIndicator() {
-            const typingDiv = document.createElement('div');
-            typingDiv.id = 'typingIndicator';
-            typingDiv.className = 'chat-message flex justify-start';
-            
-            const typingContent = document.createElement('div');
-            typingContent.className = 'message-ai max-w-xs lg:max-w-md px-4 py-3 rounded-2xl rounded-tr-md';
-            
-            const typingText = document.createElement('p');
-            typingText.className = 'text-sm typing-indicator';
-            typingText.textContent = 'يكتب...';
-            
-            typingContent.appendChild(typingText);
-            typingDiv.appendChild(typingContent);
-            chatContainer.appendChild(typingDiv);
-            
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function hideTypingIndicator() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-        }
-
-        async function getAIResponse(message, image) {
-            try {
-                // محاكاة استدعاء API للذكاء الاصطناعي
-                // في التطبيق الحقيقي، ستحتاج إلى استخدام API حقيقي مثل OpenAI أو Google AI
-                
-                await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-                
-                if (image) {
-                    return "تم تحليل الصورة بنجاح. يمكنني رؤية محتوى الصورة وسأقوم بالإجابة على أسئلتك حولها. هذه ميزة تجريبية وتحتاج إلى ربط API حقيقي لتحليل الصور.";
-                }
-                
-                // ردود تجريبية ذكية
-                const responses = [
-                    "هذا سؤال ممتاز! بناءً على بحثي في مصادر متعددة، يمكنني أن أخبرك أن " + message + " موضوع مهم يتطلب فهماً عميقاً. سأقوم بتقديم إجابة شاملة بعد تحليل المعلومات المتاحة.",
-                    "شكراً لسؤالك حول " + message + ". بعد البحث في قواعد البيانات المختلفة، وجدت معلومات قيمة يمكن أن تساعدك في فهم هذا الموضوع بشكل أفضل.",
-                    "إجابة رائعة على سؤالك! " + message + " موضوع يحتاج إلى تفسير مفصل. دعني أقدم لك المعلومات الأكثر دقة وحداثة حول هذا الموضوع.",
-                ];
-                
-                return responses[Math.floor(Math.random() * responses.length)];
-                
-            } catch (error) {
-                return "عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى.";
-            }
-        }
-
-        async function saveMessage(text, image, sender) {
-            if (!currentUser) return;
-            
-            try {
-                const messageData = {
-                    text: text || '',
-                    sender: sender,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    userId: currentUser.uid
-                };
-                
-                if (image) {
-                    // في التطبيق الحقيقي، ستحتاج إلى رفع الصورة إلى Firebase Storage
-                    messageData.hasImage = true;
-                }
-                
-                await db.collection('messages').add(messageData);
-            } catch (error) {
-                console.error('خطأ في حفظ الرسالة:', error);
-            }
-        }
-
-        async function loadChatHistory() {
-            if (!currentUser) return;
-            
-            try {
-                const messages = await db.collection('messages')
-                    .where('userId', '==', currentUser.uid)
-                    .orderBy('timestamp', 'asc')
-                    .limit(50)
-                    .get();
-                
-                // مسح الرسائل الحالية (عدا رسالة الترحيب)
-                const existingMessages = chatContainer.querySelectorAll('.chat-message:not(:first-child)');
-                existingMessages.forEach(msg => msg.remove());
-                
-                messages.forEach(doc => {
-                    const data = doc.data();
-                    if (data.text) {
-                        addMessage(data.text, data.sender);
-                    }
-                });
-                
-            } catch (error) {
-                console.error('خطأ في تحميل تاريخ المحادثة:', error);
-            }
-        }
-
-        // تحديث حجم textarea تلقائياً
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 128) + 'px';
-        });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98044a89850bd0da',t:'MTc1ODA2Njg4OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
-
